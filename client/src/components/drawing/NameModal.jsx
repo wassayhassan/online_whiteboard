@@ -47,7 +47,7 @@ export default function NameModal({nameModel, setNameModel, closeNameModal}) {
                   </Dialog.Title>
                   <form onSubmit={handleSubmit}>
                   <div className="mt-3">
-                    <input value={nameInput} className="border-[1px] p-1 border-gray-100 h-11 w-[25rem] outline-none" onChange={(e)=> setNameInput(e.target.value)} />
+                    <input value={nameInput} className="border-[1px] p-1 border-gray-200 h-11 w-[25rem] outline-none" onChange={(e)=> setNameInput(e.target.value)} />
                   </div>
 
                   <div className="mt-4">

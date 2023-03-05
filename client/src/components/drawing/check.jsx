@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState, Fragment, useLayoutEffect, useCallback, createRef} from 'react'
-import {fabric} from 'fabric'
+import {fabric} from 'fabric';
+import UploadPDFModal from './UploadPDFModal';
 import NameModal from './NameModal';
 import Canvas from './canvas';
 import { v4 as uuidv4 } from 'uuid';
@@ -82,6 +83,7 @@ const FabricJSCanvas = () => {
   const [toolS, setToolS] = useState('');
   const [boxColor, setBoxColor] = useState('black');
   const [strokeBoxSize, setStrokeBoxSize] = useState(3);
+  const [pdfModalOpen, setpdfModalOpen] = useState(true);
   const [colorBoxOpen, setColorBoxOpen] = useState(false);
   const [strokeActive, setStrokeActive] = useState(false);
   const sizeList = [1,2,3,4,5,6,7,8,9,10];
@@ -109,22 +111,22 @@ const FabricJSCanvas = () => {
 
 
   const handleMirror = useCallback(() => {
-    const width = activeCanvas.getWidth();
-    const height = activeCanvas.getHeight();
-    const zoom = activeCanvas.getZoom();
-    const {scrollTop, scrollLeft} = boxRef.current;
-    setWidth(width);
-    setHeight(height);
-    setZoom(zoom);
-    setPoint({y: scrollTop, x: scrollLeft});
-    setData(activeCanvas.getObjects());
+    // const width = activeCanvas.getWidth();
+    // const height = activeCanvas.getHeight();
+    // const zoom = activeCanvas.getZoom();
+    // const {scrollTop, scrollLeft} = boxRef.current;
+    // setWidth(width);
+    // setHeight(height);
+    // setZoom(zoom);
+    // setPoint({y: scrollTop, x: scrollLeft});
+    // setData(activeCanvas.getObjects());
     
-    if(roomId){
-      socket.emit('mirror',{roomId, width, height, zoom, scrollTop, scrollLeft, zoomPoint});
-    }else{
-      socket.emit('mirror',{roomId: roomSec, width, height, zoom, scrollTop, scrollLeft, zoomPoint});
-    }
-  },[]);
+    // if(roomId){
+    //   socket.emit('mirror',{roomId, width, height, zoom, scrollTop, scrollLeft, zoomPoint});
+    // }else{
+    //   socket.emit('mirror',{roomId: roomSec, width, height, zoom, scrollTop, scrollLeft, zoomPoint});
+    // }
+  },[activeCanvas]);
 
   const onDraw = (e) => {
     const target = e.target;
@@ -141,12 +143,15 @@ const FabricJSCanvas = () => {
 
       canvases.forEach((can)=> {
         can.on("object:added", handleObjectAdded)
+        can.on("object:moving", handleObjectAdded);
       })
-    // return (
-    //   canvases.forEach((can)=> {
-    //     can.off("object:added", handleObjectAdded)
-    //   })
-    // )
+    return () => {
+      canvases.forEach((can)=> {
+        can.off("object:added", handleObjectAdded);
+        can.off("object:moving", handleObjectAdded)
+      })
+    }
+
 
   }, [canvases])
 
@@ -252,7 +257,6 @@ const FabricJSCanvas = () => {
     socket.on('recive-element', hanlderRiciveElement);
     socket.on('mirror', handleMirrorRecive);
     socket.on('leave', handleLeave);
-    socket.on('user-coord', handleReceiveCoord)
 
     return () => {
       socket.off('create-room', handlleRoom);
@@ -264,13 +268,29 @@ const FabricJSCanvas = () => {
     }
 
   },[]);
-  async function handleReceiveCoord(data){
-      let us = users.find((u)=> u.id === data.userId);
+  useEffect(()=> {
+    if(socket){
+      socket.on('user-coord', handleReceiveCoord)
+    }
+    return ()=> {
+      socket.off('user-coord', handleReceiveCoord)
+    }
+
+  }, [socket, users])
+  const  handleReceiveCoord = (data) =>{
+    console.log("data");
+    console.log(data);
+    console.log("user");
+    console.log(users);
+
+      let us = users.find(u=> u.userId === data.userId);
+      console.log("user");
+      console.log(us)
       if(us){
         us.coord = data.coord;
 
         let newUsers = users.map((u)=> {
-          if(u.id === us.id){
+          if(u.userId === us.userId){
             return us;
           }else{
             return u;
@@ -278,7 +298,7 @@ const FabricJSCanvas = () => {
         })
         setUsers(newUsers);
       }else{
-        setUsers(pre=> [...pre, us]);
+        setUsers(pre=> [...pre, data]);
       }
 
   }
@@ -641,29 +661,38 @@ const FabricJSCanvas = () => {
   };
 
   const handleZoomIn = () => {
-    activeCanvas.setZoom(activeCanvas.getZoom() + 0.1, activeCanvas.getZoom() + 0.1);
-    activeCanvas.setWidth(activeCanvas.getWidth() + 80);
-    activeCanvas.setHeight(activeCanvas.getHeight() + 80);
-    activeCanvas.selectable = false;
-    activeCanvas.evented = false;
-    myWidth = activeCanvas.getWidth();
-    myHeight = activeCanvas.getHeight();
-    myZoom = activeCanvas.getZoom();
+    canvases.forEach((canvas)=> {
+      canvas.setZoom(canvas.getZoom() + 0.1, canvas.getZoom() + 0.1);
+      canvas.setWidth(canvas.getWidth() + 80);
+      canvas.setHeight(canvas.getHeight() + 80);
+      canvas.selectable = false;
+      canvas.evented = false;
+      myWidth = canvas.getWidth();
+      myHeight = canvas.getHeight();
+      myZoom = canvas.getZoom();
+    })
+
   }
 
   const handleZoomOut = () => {
-    activeCanvas.setZoom(activeCanvas.getZoom() - 0.1, activeCanvas.getZoom() - 0.1);
-    activeCanvas.selectable = false;
-    activeCanvas.evented = false;
+    canvases.forEach((canvas)=> {
+      canvas.setZoom(canvas.getZoom() - 0.1, canvas.getZoom() - 0.1);
+      canvas.selectable = false;
+      canvas.evented = false;
+    })
+
   };
 
-  const handleZoomReset = useCallback(() => {
-  //   activeCanvas.setZoom(1,1);
-  //   // canvas.setWidth(window.innerWidth);
-  //   // canvas.setHeight(window.innerHeight);
-  //   activeCanvas.selectable = false;
-  //   activeCanvas.evented = false;
-  },[]);
+  const handleZoomReset = () => {
+    canvases.forEach((canvas)=> {
+      canvas.setZoom(1,1);
+      canvas.setWidth(window.innerWidth);
+      canvas.setHeight(window.innerHeight);
+      canvas.selectable = false;
+      canvas.evented = false;
+    })
+
+  }
 
   const handleColor = useCallback((c) => {
     setBoxColor(c.hex);
@@ -679,7 +708,7 @@ const FabricJSCanvas = () => {
   },[]);
 
   //  // bg image handler 
-  const readFileSync = useCallback((file) => {
+  const readFileSync = (file) => {
         return new Promise((res,rej) => {
             let reader = new FileReader();
             reader.onload = e => {
@@ -691,7 +720,7 @@ const FabricJSCanvas = () => {
             }
             reader.readAsDataURL(file);
         })
-    },[]);
+    }
 
     const imageToBase64 = useCallback((file) => {
         return new Promise((res,rej) => {
@@ -818,14 +847,16 @@ const FabricJSCanvas = () => {
 
   return (
   <>
-  <NameModal nameModel={nameModel} setNameModel={setNameModel} closeNameModal={closeNameModal} />
-    <div className='box' onMouseMove={(e) => onDraw(e)} ref={boxRef} onScroll={onScroll}>
-       {/* {users.map((user)=> {
+    {users.map((user)=> {
         console.log(user);
            if(user && user.userId !== userId && user.coord){
-            return <div className={`absolute top-[${user.coord.x}px] left-[${user.coord.y}px] flex flex-col`}><FcCursor size={"1.2em"} /> <p className='text-base font-normal p-1'>{user.name}</p></div>
+            return <div style={{top: user.coord.y + "px",left: user.coord.x + "px"}} className={`absolute`}><FcCursor size={"1.2em"} /> <p className='text-base font-normal p-1'>{user.name}</p></div>
            }
-       })} */}
+       })}
+  <NameModal nameModel={nameModel} setNameModel={setNameModel} closeNameModal={closeNameModal} />
+  {/* <UploadPDFModal pdfModalOpen={pdfModalOpen} setpdfModalOpen={setpdfModalOpen} /> */}
+    <div className='box' onMouseMove={(e) => onDraw(e)} ref={boxRef} onScroll={onScroll}>
+
       <nav className={`left_nav ${navActive ? 'active z-[10000000]': ' z-[10000000]'}`}>
             <div className='buttons'>
                 <button onClick={handleBack}><AiOutlineBackward/></button>
