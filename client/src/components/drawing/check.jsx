@@ -3,7 +3,6 @@ import {fabric} from 'fabric';
 import { HiChevronDown} from "react-icons/hi";
 import UploadPDFModal from './UploadPDFModal';
 import NameModal from './NameModal';
-import FontSizeSettings from './FontSizeSettings';
 import Canvas from './canvas';
 import {SlCursor} from 'react-icons/sl';
 import { v4 as uuidv4 } from 'uuid';
@@ -970,13 +969,12 @@ const FabricJSCanvas = () => {
             id="line" onClick={() => toolHandler('line')}
             ><HiOutlineMinus/></button>
 
-            <button className={(toolS === "text"? activeToolStyle : normalToolStyle)+ "flex flex-row"} style={{ width: "1.3rem"}}
+            <button className={(toolS === "text"? activeToolStyle : normalToolStyle)+ "flex flex-row"} style={{display: "flex", flexDirection: "row"}}
             id="text" onClick={() => {toolHandler('text'); setTextFontSizeBox(!textFontSizeBox)}}
-            ><BiText/>            
+            ><BiText/> 
+              <HiChevronDown  style={{fontSize: "0.8em"}} className="hover:bg-gray-100" onClick={()=> settextfrontsettings(prev=> !prev)} />
+           
             </button>
-            <HiChevronDown size={"1.5em"} className="hover:bg-gray-100" style={{marginRight: "0px"}} onClick={()=> settextfrontsettings(prev=> !prev)} />
-
-            {/* <FontSizeSettings textFontSize={textFontSize} handleFontSize={handleFontSize} /> */}
             {
               textfontsettings &&
               <div className='stroke_box flex_d_col'>
@@ -987,12 +985,13 @@ const FabricJSCanvas = () => {
               </div>
             }
             
-            <button className={tool === "pencil"? activeToolStyle : normalToolStyle} style={{width: "1.3rem"}}
+            <button className={tool === "pencil"? activeToolStyle : normalToolStyle} style={{display: "flex", flexDirection: "row"}}
             id="pencil"
             onClick={() => {handlePencil(); setStrokeActive(!strokeActive);}}
             ><BsPencil/>
+            <HiChevronDown style={{fontSize: "0.8em"}} className="hover:bg-gray-100"  onClick={()=> setStrokeSettings(prev=> !prev)} />
+
             </button>
-            <HiChevronDown size={"1.5em"} className="hover:bg-gray-100" style={{marginRight: "0px"}} onClick={()=> setStrokeSettings(prev=> !prev)} />
 
             {
               strokeSettings &&
