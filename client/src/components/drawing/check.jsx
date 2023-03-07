@@ -1,7 +1,9 @@
 import React, {useEffect, useRef, useState, Fragment, useLayoutEffect, useCallback, createRef} from 'react'
 import {fabric} from 'fabric';
+import { HiChevronDown} from "react-icons/hi";
 import UploadPDFModal from './UploadPDFModal';
 import NameModal from './NameModal';
+import FontSizeSettings from './FontSizeSettings';
 import Canvas from './canvas';
 import {SlCursor} from 'react-icons/sl';
 import { v4 as uuidv4 } from 'uuid';
@@ -78,7 +80,9 @@ let options = {
   selectable: false
 }
 const FabricJSCanvas = () => {
+  const [textfontsettings, settextfrontsettings] = useState(false);
   const [users, setUsers] = useState([]);
+  const [strokeSettings, setStrokeSettings] = useState(false);
   const [readPdf, setReadPdf] = useState({});
   const [navActive, setNavActive] = useState(false);
   const [nameModel, setNameModel] = useState(false);
@@ -966,11 +970,15 @@ const FabricJSCanvas = () => {
             id="line" onClick={() => toolHandler('line')}
             ><HiOutlineMinus/></button>
 
-            <button className={toolS === "text"? activeToolStyle : normalToolStyle}
+            <button className={(toolS === "text"? activeToolStyle : normalToolStyle)+ "flex flex-row"} style={{ width: "1.3rem"}}
             id="text" onClick={() => {toolHandler('text'); setTextFontSizeBox(!textFontSizeBox)}}
-            ><BiText/></button>
+            ><BiText/>            
+            </button>
+            <HiChevronDown size={"1.5em"} className="hover:bg-gray-100" style={{marginRight: "0px"}} onClick={()=> settextfrontsettings(prev=> !prev)} />
+
+            {/* <FontSizeSettings textFontSize={textFontSize} handleFontSize={handleFontSize} /> */}
             {
-              textFontSizeBox &&
+              textfontsettings &&
               <div className='stroke_box flex_d_col'>
                   <label >
                     Font Size
@@ -979,13 +987,15 @@ const FabricJSCanvas = () => {
               </div>
             }
             
-            <button className={tool === "pencil"? activeToolStyle : normalToolStyle}
+            <button className={tool === "pencil"? activeToolStyle : normalToolStyle} style={{width: "1.3rem"}}
             id="pencil"
             onClick={() => {handlePencil(); setStrokeActive(!strokeActive);}}
             ><BsPencil/>
             </button>
+            <HiChevronDown size={"1.5em"} className="hover:bg-gray-100" style={{marginRight: "0px"}} onClick={()=> setStrokeSettings(prev=> !prev)} />
+
             {
-              strokeActive &&
+              strokeSettings &&
               <div className='stroke_box flex_d_col'>
                   <label >
                     Stroke Width
