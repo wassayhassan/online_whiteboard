@@ -1,86 +1,165 @@
-import { Dialog, Transition } from '@headlessui/react'
-import { Fragment, useState } from 'react'
 
-export default function LayerSettings() {
-  let [isOpen, setIsOpen] = useState(true)
+ 
 
-  function closeModal() {
-    setIsOpen(false)
-  }
 
-  function openModal() {
-    setIsOpen(true)
-  }
 
+
+import { Menu, Transition } from '@headlessui/react'
+import { Fragment, useEffect, useRef, useState } from 'react'
+import {BsChevronDown} from 'react-icons/bs';
+
+export default function LayerSettings({id,canvases, canvasesRaw, setCanvasesRaw, setActiveCanvas, layerid}) {
+  async function handleSendBackwards(){
+    // console.log(layerid);
+    // let el = document.getElementById(layerid);
+    // console.log(el);
+    let canTrue = canvases.find(can=> can.id=== id); 
+    // console.log(canvases);
+    let canIndex = canvasesRaw.findIndex(can=> can.id=== id);
+    // console.log(canIndex);
+    if(canIndex > 0){
+      let can = canvasesRaw[canIndex];
+      // console.log(can)
+     let canNewzIndex = (canvasesRaw[canIndex- 1].zIndex) - 0.05;
+     
+     can.zIndex = canNewzIndex;
+    //  els.forEach(el=> {
+      // console.log(canNewzIndex);
+      // el.style.zIndex = canNewzIndex;
+      // console.log(el.style.zIndex);
+      // setActiveCanvas(canvases(canvases.length-1));
+    //  })
+     
+     let newcans = canvasesRaw.map((canvas)=> {
+       if(canvas.id === can.id){
+         return can;
+       }else{
+         return canvas;
+       }
+     })
+     console.log(newcans)
+     for(var i = 0; i < newcans.length; i++){
+    
+      // Last i elements are already in place 
+      for(var j = 0; j < ( newcans.length - i -1 ); j++){
+         
+        // Checking if the item at present iteration
+        // is greater than the next iteration
+        if(newcans[j].zIndex > newcans[j+1].zIndex){
+           
+          // If the condition is true then swap them
+          var temp = newcans[j].zIndex
+          newcans[j].zIndex = newcans[j + 1].zIndex
+          newcans[j+1].zIndex = temp
+        }
+      }
+    }
+    //  let aftersort = newcans.sort((a, b)=> Number(a.zIndex) < Number(b.zIndex));
+     console.log(newcans);
+     setCanvasesRaw(newcans);
+    
+    }
+
+
+ }
+ async function handleSendToBack(){
+   let canIndex = canvasesRaw.findIndex(can=> can.id=== id);
+   if(canIndex > 0){
+    let canNewzIndex = (canvasesRaw[0].zIndex) - 0.05;
+    let can = canvasesRaw.find(can=> can.id=== id);
+    can.zIndex = canNewzIndex;
+    let newcans = canvasesRaw.map((canvas)=> {
+      if(canvas.id === can.id){
+        return can;
+      }else{
+        return canvas;
+      }
+    })
+    setCanvasesRaw(newcans);
+
+   
+   }
+ }
+ async function handleBringForward(){
+   let canIndex = canvasesRaw.findIndex(can=> can.id=== id);
+   if(canIndex < canvasesRaw.length -1){
+    let canNewzIndex = (canvasesRaw[canIndex+ 1].zIndex) + 0.05;
+    let can = canvasesRaw.find(can=> can.id=== id);
+    can.zIndex = canNewzIndex;
+    let newcans = canvasesRaw.map((canvas)=> {
+      if(canvas.id === can.id){
+        return can;
+      }else{
+        return canvas;
+      }
+    })
+    setCanvasesRaw(newcans);
+   
+   }
+ }
+ async function handleBringToFront(){
+  let canTrue = canvases.find(can=> can.id=== id); 
+ setActiveCanvas(canTrue);
+  console.log(id);
+   let canIndex = canvasesRaw.findIndex(can=> can.id=== id);
+   console.log(canIndex)
+   if(canIndex < canvasesRaw.length -1){
+    console.log(canvasesRaw[canIndex]);
+    let canNewzIndex = (canvasesRaw[canvasesRaw.length-1].zIndex) + 0.05;
+    let can = canvasesRaw.find(can=> can.id=== id);
+    can.zIndex = canNewzIndex;
+    let newcans = canvasesRaw.map((canvas)=> {
+      if(canvas.id === can.id){
+        return can;
+      }else{
+        return canvas;
+      }
+    })
+    
+    newcans.sort((a, b)=> a.zIndex > b.zIndex);
+    console.log(newcans);
+    setCanvasesRaw(newcans);
+    
+   }
+ }
   return (
-    <>
-      <div className="fixed inset-0 flex items-center justify-center">
-        <button
-          type="button"
-          onClick={openModal}
-          className="rounded-md bg-black bg-opacity-20 px-4 py-2 text-sm font-medium text-white hover:bg-opacity-30 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75"
+    // <div className="fixed top-16 w-56 text-right">
+      <Menu as="div" className="relative inline-block text-left">
+        <div>
+          <Menu.Button className="inline-flex justify-center rounded-md  text-sm font-medium text-white hover:bg-opacity-30 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75">
+            <BsChevronDown
+              className="ml-2 -mr-1 h-5 w-5 text-black"
+              aria-hidden="true"
+            />
+          </Menu.Button>
+        </div>
+        <Transition
+          as={Fragment}
+          enter="transition ease-out duration-100"
+          enterFrom="transform opacity-0 scale-95"
+          enterTo="transform opacity-100 scale-100"
+          leave="transition ease-in duration-75"
+          leaveFrom="transform opacity-100 scale-100"
+          leaveTo="transform opacity-0 scale-95"
         >
-          Open dialog
-        </button>
-      </div>
+          <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-[100000000]">
+            <div className="px-1 py-1 w-full">
+              <button className='text-md' style={{fontSize: "1.1rem", width: '14rem', textAlign: 'left'}} onClick={handleSendBackwards}>Send Backwards</button>
 
-      <Transition appear show={isOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-10" onClose={closeModal}>
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="fixed inset-0 bg-black bg-opacity-25" />
-          </Transition.Child>
 
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4 text-center">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-              >
-                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                  <Dialog.Title
-                    as="h3"
-                    className="text-lg font-medium leading-6 text-gray-900"
-                  >
-                    Settings
-                  </Dialog.Title>
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-500">
-                      Your payment has been successfully submitted. We’ve sent
-                      you an email with all of the details of your order.
-                    </p>
-                  </div>
+              <button className='text-md' style={{fontSize: "1.1rem",width: '14rem', textAlign: 'left'}} onClick={handleSendToBack}>Send to Back</button>
 
-                  <div className="mt-4">
-                    <button type="button"
-                      className="inline-flex justify-center rounded-md border border-transparent bg-blue-100 px-4 py-2 text-sm font-medium text-blue-900 hover:bg-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                      onClick={closeModal}></button>
-                    <button
-                      type="button"
-                      className="inline-flex justify-center rounded-md border border-transparent bg-red-400 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
-                      onClick={closeModal}
-                    >
-                      Close
-                    </button>
-                  </div>
-                </Dialog.Panel>
-              </Transition.Child>
+
+              <button className='text-md' style={{fontSize: "1.1rem", width: '14rem', textAlign: 'left'}} onClick={handleBringForward}>Bring Forward</button>
+
+
+              <button className='text-md' style={{fontSize: "1.1rem", width: '14rem', textAlign: 'left'}} onClick={handleBringToFront}>Bring to Front</button>
+
             </div>
-          </div>
-        </Dialog>
-      </Transition>
-    </>
+          </Menu.Items>
+        </Transition>
+      </Menu>
+    // </div>
   )
 }
+

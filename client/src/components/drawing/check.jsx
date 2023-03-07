@@ -3,6 +3,7 @@ import {fabric} from 'fabric';
 import UploadPDFModal from './UploadPDFModal';
 import NameModal from './NameModal';
 import Canvas from './canvas';
+import {SlCursor} from 'react-icons/sl';
 import { v4 as uuidv4 } from 'uuid';
 import { SketchPicker } from 'react-color';
 import io from 'socket.io-client';
@@ -78,18 +79,18 @@ let options = {
 }
 const FabricJSCanvas = () => {
   const [users, setUsers] = useState([]);
+  const [readPdf, setReadPdf] = useState({});
   const [navActive, setNavActive] = useState(false);
   const [nameModel, setNameModel] = useState(false);
   const [toolS, setToolS] = useState('');
   const [boxColor, setBoxColor] = useState('black');
   const [strokeBoxSize, setStrokeBoxSize] = useState(3);
-  const [pdfModalOpen, setpdfModalOpen] = useState(true);
+  const [pdfModalOpen, setpdfModalOpen] = useState(false);
   const [colorBoxOpen, setColorBoxOpen] = useState(false);
   const [strokeActive, setStrokeActive] = useState(false);
   const sizeList = [1,2,3,4,5,6,7,8,9,10];
   const [canvasesRaw, setCanvasesRaw] = useState([{id: uuidv4(), name: 'layer-0', zIndex: 0}]);
   const [canvases, setCanvases] = useState([])
-  const [receivedCanvases, setReceivedCanvases] = useState([]);
   const [activeCanvas, setActiveCanvas] = useState({});
   const boxRef = useRef(null);
   const [myId, setMyId] = useState('');
@@ -142,23 +143,61 @@ const FabricJSCanvas = () => {
   useEffect(()=> {
 
       canvases.forEach((can)=> {
-        can.on("object:added", handleObjectAdded)
+        can.on("object:added", handleObjectAdded);
+        can.on("selection:created", handleObjectSelected);
+        // can.on("selection:created", handleObjectSelected);
+        can.on("selection:updated", handleObjectSelected);
+        can.on("selection:cleared", handleSelectionCleared);
         can.on("object:moving", handleObjectAdded);
       })
     return () => {
       canvases.forEach((can)=> {
         can.off("object:added", handleObjectAdded);
-        can.off("object:moving", handleObjectAdded)
+        can.off("selection:updated", handleObjectSelected);
+        can.off("selection:cleared", handleSelectionCleared);
+        can.off("selection:created", handleObjectSelected);
+        can.off("object:moving", handleObjectAdded);
       })
     }
 
 
-  }, [canvases])
+  }, [canvases]);
+
+  async function handleSelectionCleared(){
+     document.removeEventListener("keydown", async(e)=> {
+      if(e.key === "Delete"){
+        let objs = activeCanvas.getActiveObjects();
+        objs.forEach((obj)=> {
+          activeCanvas.remove(obj);
+          activeCanvas.requestRenderAll();
+
+        });
+      }
+      // if(e.keyCode === 127)
+    });
+  }
+
+  async function handleObjectSelected(data){
+    document.addEventListener('keydown', async(e)=> {
+      console.log(e);
+      if(e.key === "Delete"){
+        let objs = activeCanvas.getActiveObjects();
+        objs.forEach((obj)=> {
+          activeCanvas.remove(obj);
+          activeCanvas.requestRenderAll();
+
+        });
+      }
+      // if(e.keyCode === 127)
+    })
+    // console.log(obj)
+  }
 
   async function handleObjectAdded(){
     if(canvases.length > 0 && activeCanvas && (roomId || roomSec)){
       let sendCanvases = canvasesRaw.map((can, idx)=> {
         let objects = canvases[idx].getObjects();
+        // let reverseObjects = objects.reverse();
         can.objects = objects;
         return can;
     })   
@@ -167,6 +206,7 @@ const FabricJSCanvas = () => {
         canvasesRaw: sendCanvases
       }
       console.log(canvasesRaw);
+      console.log(data);
 
       socket.emit('send-element',data);
     }
@@ -180,12 +220,6 @@ const FabricJSCanvas = () => {
   const hanlderNewUserJoin = useCallback(({name, userId}) => {
     toast.info(`${name} join the room`);
     setUsers(pre=> [...pre, {name, userId}])
-    // const elements = activeCanvas.getObjects();
-    // if(roomId){
-    //   socket.emit('send-element', {elements, roomId});
-    // }else{
-    //   socket.emit('send-element', {elements, roomId: roomSec});
-    // }
   },[]);
 
   const createRoom = useCallback((id) => {
@@ -195,6 +229,7 @@ const FabricJSCanvas = () => {
   const hanlderRiciveElement = useCallback((data) => {
     // console.log(data);
     // setCanvases([]);
+    console.log(data)
     console.log("recieved");
     setCanvases([]);
     setCanvasesRaw(data.canvasesRaw);
@@ -494,12 +529,12 @@ const FabricJSCanvas = () => {
 
   // increace width 
   useEffect(() => {
-  //   if(activeCanvas.id){
-  //     // console.log(activeCanvas)
-  //     // activeCanvas.setWidth(window.innerWidth * 3);
-  //     // activeCanvas.setHeight(window.innerHeight * 3); 
-  //     // boxRef.current.scrollTo(canvas.getWidth()/1.2, canvas.getHeight()/1.2);
-  //   }
+    // if(activeCanvas.id){
+    //   // console.log(activeCanvas)
+    //   // activeCanvas.setWidth(window.innerWidth * 3);
+    //   // activeCanvas.setHeight(window.innerHeight * 3); 
+    //   // boxRef.current.scrollTo(canvas.getWidth()/1.2, canvas.getHeight()/1.2);
+    // }
 
   },[activeCanvas]);
 
@@ -554,6 +589,7 @@ const FabricJSCanvas = () => {
     activeCanvas.on('mouse:down',handleMouseDown);
     activeCanvas.on('mouse:move',handleMouseMove);
     activeCanvas.on('mouse:up',handleMouseUp);
+
     activeCanvas.forEachObject(function(object){ 
       object.selectable = false;
       object.hoverCursor = 'auto'; 
@@ -659,6 +695,24 @@ const FabricJSCanvas = () => {
     activeCanvas.requestRenderAll();
     handlerSelect();
   };
+  // useEffect(()=> {
+  //   canvases.forEach(can=> {
+  //       if(socket && canvases.length > 0 && activeCanvas && (roomId || roomSec)){
+  //         let sendCanvases = canvasesRaw.map((can, idx)=> {
+  //           let objects = canvases[idx].getObjects();
+  //           can.objects = objects;
+  //           return can;
+  //       })   
+  //         let data = {
+  //           roomId: roomId? roomId: roomSec,
+  //           canvasesRaw: sendCanvases
+  //         }
+  //         console.log(canvasesRaw);
+    
+  //         socket.emit('send-element',data);
+  //       }
+  //   })
+  // }, [canvasesRaw, socket])
 
   const handleZoomIn = () => {
     canvases.forEach((canvas)=> {
@@ -694,18 +748,18 @@ const FabricJSCanvas = () => {
 
   }
 
-  const handleColor = useCallback((c) => {
+  const handleColor = (c) => {
     setBoxColor(c.hex);
     color = c.hex;
     activeCanvas.freeDrawingBrush.color = c.hex;
-  },[]);
+  }
 
-  const handleStroke = useCallback((e) => {
+  const handleStroke = (e) => {
     strokeSize = e.target.value;
     setStrokeBoxSize(e.target.value);
 
     activeCanvas.freeDrawingBrush.width = parseInt(e.target.value, 10) || 1;
-  },[]);
+  }
 
   //  // bg image handler 
   const readFileSync = (file) => {
@@ -722,7 +776,7 @@ const FabricJSCanvas = () => {
         })
     }
 
-    const imageToBase64 = useCallback((file) => {
+    const imageToBase64 = (file) => {
         return new Promise((res,rej) => {
             const reader = new FileReader();
             reader.onload = () => {
@@ -732,7 +786,7 @@ const FabricJSCanvas = () => {
             }
             reader.readAsDataURL(file);
         })
-    },[]);
+    }
 
     async function onUpload(e) {
         const file = e.target.files[0];
@@ -761,21 +815,33 @@ const FabricJSCanvas = () => {
             const pdf = await window.pdfjs.getDocument({data}).promise;
             const page = await pdf.getPage(1);
             const viewport = page.getViewport({scale: 1});
+            // const Dcanvas = activeCanvas.getElement();
+            // console.log(Dcanvas)
+            // const canvasContext = Dcanvas.getContext("2d");
+            // console.log(canvasContext);
+            
+            // const Dcanvas = document.getElementById()
             const Dcanvas = document.createElement('canvas');
             const canvasContext = Dcanvas.getContext('2d');
             Dcanvas.height = viewport.height;
             Dcanvas.width = viewport.width;
             await page.render({canvasContext, viewport}).promise;
-            const firstImage = Dcanvas.toDataURL('image/png');
-            if(firstImage){
-              fabric.Image.fromURL(firstImage,function(img){
-                img.set('left',window.innerWidth/3).set('top',window.innerHeight/3)
-                activeCanvas.add(img);
-                activeCanvas.requestRenderAll();
-                activeCanvas.selectable = false;
-                setToolS("selection")
-              });
-            }
+              // Get the image object and move it to the background layer
+              const pdfImage = new fabric.Image(Dcanvas, { left: 0, top: 0, selectable: false });
+              activeCanvas.add(pdfImage);
+              activeCanvas.renderAll();
+            
+            // const firstImage = Dcanvas.toDataURL('image/png');
+            // if(firstImage){
+            //   fabric.Image.fromURL(firstImage, {},function(img){
+            //     img.set('left',window.innerWidth/3).set('top',window.innerHeight/3)
+            //     activeCanvas.add(img);
+            //     img.sendBackwards();
+            //     activeCanvas.requestRenderAll();
+            //     activeCanvas.selectable = false;
+            //     setToolS("selection")
+            //   });
+            // }
         }catch(err){
             console.log(err.message)
         }   
@@ -845,16 +911,17 @@ const FabricJSCanvas = () => {
     }
   },[]);
 
+
   return (
   <>
     {users.map((user)=> {
         console.log(user);
            if(user && user.userId !== userId && user.coord){
-            return <div style={{top: user.coord.y + "px",left: user.coord.x + "px"}} className={`absolute`}><FcCursor size={"1.2em"} /> <p className='text-base font-normal p-1'>{user.name}</p></div>
+            return <div style={{top: user.coord.y + "px",left: user.coord.x + "px"}} className={`absolute`}><SlCursor size={"1.4em"} /> <p className='text-lg font-medium p-1'>{user.name}</p></div>
            }
        })}
   <NameModal nameModel={nameModel} setNameModel={setNameModel} closeNameModal={closeNameModal} />
-  {/* <UploadPDFModal pdfModalOpen={pdfModalOpen} setpdfModalOpen={setpdfModalOpen} /> */}
+  <UploadPDFModal pdfModalOpen={pdfModalOpen} setpdfModalOpen={setpdfModalOpen} onUpload={onUpload} readPdf = {readPdf} setReadPdf={setReadPdf} activeCanvas={activeCanvas} />
     <div className='box' onMouseMove={(e) => onDraw(e)} ref={boxRef} onScroll={onScroll}>
 
       <nav className={`left_nav ${navActive ? 'active z-[10000000]': ' z-[10000000]'}`}>
@@ -939,8 +1006,8 @@ const FabricJSCanvas = () => {
                 <SketchPicker color={boxColor}  onChangeComplete={handleColor} defaultValue='#452135'/>
               </div>
             }
-            <input type='file' style={{display: 'none'}} id='chooseFile' onChange={onUpload}/>
-            <button><label htmlFor='chooseFile' ><RiGalleryFill/></label></button>
+            {/* <input type='file' style={{display: 'none'}} id='chooseFile' onChange={onUpload}/> */}
+            <button onClick={()=> setpdfModalOpen(true)}><RiGalleryFill/></button>
            {/* <button className='relative'><BsLayers /></button> */}
             {/* <button className=''> */}
             {/* <div className='btn01 relative'> */}

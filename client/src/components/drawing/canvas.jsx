@@ -3,6 +3,7 @@ import {fabric} from 'fabric'
 let options = {
     width: window.innerWidth,
     height: window.innerHeight,
+    preserveObjectStacking: true,
     selection: false,
     selectable: false
   }
@@ -72,6 +73,7 @@ const Canvas = ({canva, index ,setActiveCanvas ,activeCanvas ,canvases,setCanvas
           fabric.Image.fromURL(src,function(img){
             img.set({left,top,width,height,angle,scaleX,scaleY,skewX,skewY})
             canvas.add(img);
+            img.sendToBack();
             canvas.requestRenderAll();
           });
           break;
@@ -97,6 +99,7 @@ const Canvas = ({canva, index ,setActiveCanvas ,activeCanvas ,canvases,setCanvas
     canvas.selectable = false;
    setCanvases((prev)=> [...prev, canvas]);
    setActiveCanvas(canvas);
+   console.log("reloading")
 
    return () => {
     canvas.dispose()
@@ -107,13 +110,13 @@ const Canvas = ({canva, index ,setActiveCanvas ,activeCanvas ,canvases,setCanvas
   
 
     return (
-        <div className=' absolute top-0 left-0'>
+        <div className={`absolute top-0 left-0 ${canva.id} `}  key={index}>
         <canvas
-             id={`canvas-${index}`}
+              id={canva.id}
               className={canva.name}
               ref={canvasRef}
-              style={{overflow: 'auto', 
-              zIndex: canva.zIndex,
+              style={{overflow: 'auto',
+              zIndex: canva.zIndex     
             }}
             >
         </canvas>

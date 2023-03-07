@@ -1,32 +1,76 @@
 import { Dialog, Transition } from '@headlessui/react'
 import { Fragment, useState } from 'react'
+import { fabric } from 'fabric';
 
-export default function UploadPDFModal({pdfModalOpen, setpdfModalOpen}) {
+export default function UploadPDFModal({pdfModalOpen, setpdfModalOpen, onUpload,activeCanvas, readPdf, setReadPdf}) {
   const [isOpen, setIsOpen] = useState(true);
   const [totalPages, setTotalPages] = useState(null);
+  const [fileType, setFileType] = useState("");
   const [pagesToInsert, setPagesToInsert] = useState('');
+  const [loadedImg, setLoadedImg] = useState();
 
   const [url, seturl] = useState('');
 
   function closeModal() {
-    setIsOpen(false)
+    setpdfModalOpen(false);
+    renderPDFWithNum();
   }
 
   async function pdfUploadHandle(e){
-    // console.log()
-    const data = await readFileSync(e.target.files[0]);
-    const pdf = await window.pdfjs.getDocument({data}).promise;
-    const pages = await pdf.numPages
-    setTotalPages(pages);
-    console.log(pages)
+
+    const file = e.target.files[0];
+    let fileExtension = file.name.split('.');
+    fileExtension = fileExtension[fileExtension.length -1];
+    if(fileExtension !== 'pdf'){
+        const imageLoad = await imageToBase64(file);
+        setFileType("img");
+        setLoadedImg(imageLoad);
+    }else{
+      setFileType("pdf");
+      const data = await readFileSync(file);
+      const pdf = await window.pdfjs.getDocument({data}).promise;
+      const pages = await pdf.numPages
+      setTotalPages(pages);
+      setReadPdf(pdf);
+    }
   }
 
-  function openModal() {
-    setIsOpen(true)
-  }
-  async function handleClose(){
+  async function renderPDFWithNum(){
+    if(fileType === "pdf"){
+      let pagesT = pagesToInsert.split(',');
+      console.log(pagesT);
+      pagesT.forEach(async(p, idx)=> {
+        const page = await readPdf.getPage(Number(p));
+        const viewport = page.getViewport({scale: 1});
+        const Dcanvas = document.createElement('canvas');
+        const canvasContext = Dcanvas.getContext('2d');
+        Dcanvas.height = viewport.height;
+        Dcanvas.width = viewport.width;
+        await page.render({canvasContext, viewport}).promise;
+          // Get the image object and move it to the background layer
+          const pdfImage = new fabric.Image(Dcanvas, { left: 0, top: 0});
+          activeCanvas.add(pdfImage);
+          activeCanvas.renderAll();
+          if(idx === (pagesT.length - 1)){
+            setReadPdf(null);
+          }
+      })  
+    }else{
+      if(loadedImg){
+        fabric.Image.fromURL(loadedImg,function(img){
+          img.set('left',window.innerWidth/3).set('top',window.innerHeight/3)
+          activeCanvas.add(img);
+          activeCanvas.requestRenderAll();
+          activeCanvas.selectable = false;
+          setLoadedImg(null);
+        });
+      }
+
+    }
+  
 
   }
+
 
   return (
     <>
@@ -114,4 +158,15 @@ const readFileSync = (file) => {
         }
         reader.readAsDataURL(file);
     })
+}
+const imageToBase64 = (file) => {
+  return new Promise((res,rej) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+          if(reader.readyState === 2){
+              res(reader.result);
+          }
+      }
+      reader.readAsDataURL(file);
+  })
 }
