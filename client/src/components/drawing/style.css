@@ -67,8 +67,6 @@ button
 
 .top_nav button 
 {
-    display: flex;
-    flex-direction: row;
     width: 4rem;
     height: 4rem;
     display: grid;
