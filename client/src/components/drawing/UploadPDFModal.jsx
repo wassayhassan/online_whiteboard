@@ -1,6 +1,8 @@
 import { Dialog, Transition } from '@headlessui/react'
 import { Fragment, useState } from 'react'
+import {AiOutlineCloudDownload} from 'react-icons/ai';
 import { fabric } from 'fabric';
+import axios from "axios";
 
 export default function UploadPDFModal({pdfModalOpen, setpdfModalOpen, onUpload,activeCanvas, readPdf, setReadPdf}) {
   const [isOpen, setIsOpen] = useState(true);
@@ -8,6 +10,40 @@ export default function UploadPDFModal({pdfModalOpen, setpdfModalOpen, onUpload,
   const [fileType, setFileType] = useState("");
   const [pagesToInsert, setPagesToInsert] = useState('');
   const [loadedImg, setLoadedImg] = useState();
+
+  async function downloadFile(){
+    try{
+      let response = await axios({
+        url: url, //your url
+        method: 'GET',
+        responseType: 'blob', // important
+        withCredentials: false,
+
+    });
+    const imageLoad = await imageToBase64(response.data);
+    setFileType("img");
+    setLoadedImg(imageLoad);
+    }catch(err){
+      const pdf = await window.pdfjs.getDocument(url).promise;
+      console.log(pdf);
+      const pages = await pdf.numPages
+      setTotalPages(pages);
+      setReadPdf(pdf);
+    }
+    
+
+
+  // console.log(response.data);
+  // let type = response?.data?.type?.split("/")[0];
+  // console.log(type)
+  // if(type !== "image"){
+
+  // }else{
+
+  // }
+
+
+  }
 
   const [url, seturl] = useState('');
 
@@ -110,7 +146,11 @@ export default function UploadPDFModal({pdfModalOpen, setpdfModalOpen, onUpload,
                   <div className="mt-2 grid gap-2">
                     <div className='flex flex-col p-1'>
                         <p className='text-2xl'>Enter URL</p>
-                        <input type="text" className='border-[1px] p-1 rounded-md border-gray-200 h-11 w-[35rem] outline-none' value={url} onChange={e=> seturl(e.target.value)} />
+                        <div className='flex flex-row'>
+                          <input type="text" className='border-[1px] p-1 rounded-md border-gray-200 h-11 w-[33.5rem] outline-none' value={url} onChange={e=> seturl(e.target.value)} />
+                          <button className='ml-2' onClick={()=> downloadFile()}><AiOutlineCloudDownload size="2em" /></button>
+                        </div>
+
                     </div>
                     <div className='flex flex-col p-1'>
                         <p className='text-2xl'>From Your device</p>

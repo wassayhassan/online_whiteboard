@@ -1,22 +1,25 @@
 import React, {useRef, useEffect} from "react";
-import {fabric} from 'fabric'
+import {fabric} from 'fabric';
+import {FcCursor} from 'react-icons/fc';
 let options = {
     width: window.innerWidth,
     height: window.innerHeight,
     preserveObjectStacking: true,
     selection: false,
-    selectable: false
+    selectable: false,
+    // perPixelTargetFind: true,
   }
 
-const Canvas = ({canva, index ,setActiveCanvas ,activeCanvas ,canvases,setCanvasesRaw, setCanvases}) => {
+const Canvas = ({canva, index ,setActiveCanvas ,activeCanvas ,canvases,setCanvasesRaw, setCanvases, toolS}) => {
     const canvasRef = useRef(null);
 
   useEffect(()=> {
    let canvas = new fabric.Canvas(canvasRef.current, options);
    canvas.clear();
    canvas.id = canva.id;
-
-    canva.objects?.forEach(({type,width,height,top,left,stroke,strokeWidth,fill,radius,angle,x1,x2,y1,y2,path,src,scaleX,scaleY,skewX,skewY, text, fontSize}) => {
+   canvas.setHeight(window.innerHeight * 3);
+   canvas.setWidth(window.innerWidth * 3);
+    canva.objects?.forEach(({type,width,height,top,left,stroke,strokeWidth,fill,radius,angle,x1,x2,y1,y2,path,src,scaleX,scaleY,skewX,skewY, text, fontSize}, idx) => {
       switch(type){
         case 'rect':
           let newRectangle = new fabric.Rect({
@@ -73,7 +76,11 @@ const Canvas = ({canva, index ,setActiveCanvas ,activeCanvas ,canvases,setCanvas
           fabric.Image.fromURL(src,function(img){
             img.set({left,top,width,height,angle,scaleX,scaleY,skewX,skewY})
             canvas.add(img);
-            img.sendToBack();
+            let diff = (canva.objects.length) - idx;
+            for(let i = 1; i <= diff; i++){
+              img.sendBackwards();
+            }
+            
             canvas.requestRenderAll();
           });
           break;
@@ -108,9 +115,10 @@ const Canvas = ({canva, index ,setActiveCanvas ,activeCanvas ,canvases,setCanvas
 
   }, [canva])
   
-
+  console.log(toolS)
     return (
-        <div className={`absolute top-0 left-0 ${canva.id} `}  key={index}>
+
+        <div className={`absolute top-0 left-0 ${canva.id}`}  key={index} >
         <canvas
               id={canva.id}
               className={canva.name}

@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState, Fragment, useLayoutEffect, useCallback, createRef} from 'react'
 import {fabric} from 'fabric';
+import Hammer from "hammerjs"
 import { HiChevronDown} from "react-icons/hi";
 import UploadPDFModal from './UploadPDFModal';
 import NameModal from './NameModal';
@@ -19,6 +20,7 @@ import {GrMenu, GrClose} from 'react-icons/gr';
 import {BsSquare, BsCircle, BsPencil, BsFillLayersFill} from 'react-icons/bs';
 import {AiOutlineSelect,AiOutlineZoomOut,AiOutlineZoomIn, AiOutlineBackward, AiFillForward} from 'react-icons/ai';
 import {HiOutlineMinus} from 'react-icons/hi';
+import {FaHandPaper} from 'react-icons/fa';
 import {RiGalleryFill} from 'react-icons/ri';
 import {BsLayers} from 'react-icons/bs';
 import {CgColorPicker} from 'react-icons/cg';
@@ -27,10 +29,12 @@ import {FiShare2} from 'react-icons/fi';
 import {TbViewportNarrow} from 'react-icons/tb';
 import {MdOutlineMessage} from 'react-icons/md';
 import {BiSend, BiText, BiAddToQueue, BiReset} from 'react-icons/bi';
-import {FcCursor} from 'react-icons/fc';
+
 import { image } from "../home/Home";
 import { useParams } from "react-router-dom";
 import 'react-toastify/dist/ReactToastify.css';
+
+
 
 
 const getSvgPathFromStroke = stroke => {
@@ -43,10 +47,11 @@ const getSvgPathFromStroke = stroke => {
 
   return path;
 };
-
+var totalDeltaX = 0;
+var totalDeltaY = 0;
 let activeToolStyle = "bg-primary-100 p-2";
 let normalToolStyle = ""
-
+var viewportTransform;
 let tool;
 let canvas;
 let newLine;
@@ -54,6 +59,7 @@ let newRectangle;
 let newCircle;
 let drawing = false;
 let origX;
+var zoomLevel = 1;
 let origY;
 let circleX1;
 let color = 'black';
@@ -81,6 +87,7 @@ let options = {
 const FabricJSCanvas = () => {
   const [textfontsettings, settextfrontsettings] = useState(false);
   const [users, setUsers] = useState([]);
+  const [hammerEls, setHammerEls] = useState([]);
   const [strokeSettings, setStrokeSettings] = useState(false);
   const [readPdf, setReadPdf] = useState({});
   const [navActive, setNavActive] = useState(false);
@@ -133,14 +140,17 @@ const FabricJSCanvas = () => {
   },[activeCanvas]);
 
   const onDraw = (e) => {
-    const target = e.target;
-    const rect = target.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    let coord = {
-      x, y
-    };
-    socket.emit('user-coord', {roomId: roomId? roomId:roomSec, userId, coord});
+    if(userId && myName){
+      const target = e.target;
+      const rect = target.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      let coord = {
+        x, y
+      };
+      socket.emit('user-coord', {roomId: roomId? roomId:roomSec, userId, coord});
+    }
+ 
   }
 
   useEffect(()=> {
@@ -148,23 +158,57 @@ const FabricJSCanvas = () => {
       canvases.forEach((can)=> {
         can.on("object:added", handleObjectAdded);
         can.on("selection:created", handleObjectSelected);
-        // can.on("selection:created", handleObjectSelected);
         can.on("selection:updated", handleObjectSelected);
         can.on("selection:cleared", handleSelectionCleared);
         can.on("object:moving", handleObjectAdded);
+        // can.on("touch:gesture", handleTouchGesture)
+        // can.on("touch:drag", handleTouchDrag)
+        can.on("mouse:wheel", (opt)=> {
+          var delta = opt.e.deltaY;
+          var zoom = can.getZoom();
+          zoom *= 0.999 ** delta;
+          if (zoom > 20) zoom = 20;
+          if (zoom < 0.01) zoom = 0.01;
+          can.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+          opt.e.preventDefault();
+          opt.e.stopPropagation();
+        });
       })
     return () => {
       canvases.forEach((can)=> {
+        can.off("mouse:wheel", (opt)=> {
+          var delta = opt.e.deltaY;
+          var zoom = can.getZoom();
+          zoom *= 0.999 ** delta;
+          if (zoom > 20) zoom = 20;
+          if (zoom < 0.01) zoom = 0.01;
+          can.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+          opt.e.preventDefault();
+          opt.e.stopPropagation();
+        });
+        // can.off("touch:drag", handleTouchDrag)
         can.off("object:added", handleObjectAdded);
         can.off("selection:updated", handleObjectSelected);
         can.off("selection:cleared", handleSelectionCleared);
         can.off("selection:created", handleObjectSelected);
         can.off("object:moving", handleObjectAdded);
+        // can.off("touch:gesture", handleTouchGesture);
       })
     }
 
 
   }, [canvases]);
+
+  async function handleTouchDrag(e){
+    alert("e");
+     console.log(e);
+     
+  }
+  async function handleTouchGesture(e){
+    alert("g")
+    console.log("lauches")
+     console.log(e);
+  }
 
   async function handleSelectionCleared(){
      document.removeEventListener("keydown", async(e)=> {
@@ -182,7 +226,6 @@ const FabricJSCanvas = () => {
 
   async function handleObjectSelected(data){
     document.addEventListener('keydown', async(e)=> {
-      console.log(e);
       if(e.key === "Delete"){
         let objs = activeCanvas.getActiveObjects();
         objs.forEach((obj)=> {
@@ -208,8 +251,6 @@ const FabricJSCanvas = () => {
         roomId: roomId? roomId: roomSec,
         canvasesRaw: sendCanvases
       }
-      console.log(canvasesRaw);
-      console.log(data);
 
       socket.emit('send-element',data);
     }
@@ -232,8 +273,6 @@ const FabricJSCanvas = () => {
   const hanlderRiciveElement = useCallback((data) => {
     // console.log(data);
     // setCanvases([]);
-    console.log(data)
-    console.log("recieved");
     setCanvases([]);
     setCanvasesRaw(data.canvasesRaw);
 
@@ -315,15 +354,147 @@ const FabricJSCanvas = () => {
     }
 
   }, [socket, users])
-  const  handleReceiveCoord = (data) =>{
-    console.log("data");
-    console.log(data);
-    console.log("user");
-    console.log(users);
 
+  async function handleMouseWheel(opt){
+        var delta = opt.e.deltaY;
+        var zoom = canvas.getZoom();
+        zoom *= 0.999 ** delta;
+        if (zoom > 20) zoom = 20;
+        if (zoom < 0.01) zoom = 0.01;
+        canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+        opt.e.preventDefault();
+        opt.e.stopPropagation();
+
+   }
+  useEffect(()=> {
+    if(hammerEls.length > 0 && toolS !== "panning"){
+     
+      canvases.forEach((can)=> {
+        can.defaultCursor = "auto";
+        can.on("object:added", handleObjectAdded);
+        can.on("selection:updated", handleObjectSelected);
+        can.on("selection:cleared", handleSelectionCleared);
+        can.on("selection:created", handleObjectSelected);
+        can.on("object:moving", handleObjectAdded);
+      })
+      hammerEls.forEach((hamm)=> {
+        hamm.off("pan", function(e) {
+          totalDeltaX += e.deltaX * 0.1;
+          totalDeltaY += e.deltaY * 0.1;
+          var newViewportTransform = [    viewportTransform[0], viewportTransform[1], viewportTransform[2],
+            viewportTransform[3], viewportTransform[4] + totalDeltaX, viewportTransform[5] + totalDeltaY
+          ];
+          activeCanvas.setViewportTransform(newViewportTransform);
+        });
+        hamm.off("pinch", handlePinch)
+      })
+    }
+
+  }, [hammerEls, toolS])
+
+  async function handlePanning(){
+    setToolS("panning");
+    canvases.forEach((can)=> {
+      can.defaultCursor = "grab";
+    })
+    var hammer = new Hammer(activeCanvas.wrapperEl);
+    hammer.get('pinch').set({ enable: true });
+    activeCanvas.hoverCursor = 'grab';
+    var viewportTransform = activeCanvas.viewportTransform;
+    hammer.on('pan', function(e) {
+      totalDeltaX += e.deltaX * 0.1;
+      totalDeltaY += e.deltaY * 0.1;
+      var newViewportTransform = [    viewportTransform[0], viewportTransform[1], viewportTransform[2],
+        viewportTransform[3], viewportTransform[4] + totalDeltaX, viewportTransform[5] + totalDeltaY
+      ];
+      activeCanvas.setViewportTransform(newViewportTransform);
+    });
+
+
+    hammer.on('pinch', handlePinch)
+
+
+    activeCanvas.discardActiveObject();
+     activeCanvas.off("object:added", handleObjectAdded);
+     activeCanvas.off("selection:updated", handleObjectSelected);
+     activeCanvas.off("selection:cleared", handleSelectionCleared);
+     activeCanvas.off("selection:created", handleObjectSelected);
+     activeCanvas.off("object:moving", handleObjectAdded);
+     activeCanvas.off('mouse:down',handleMouseDown);
+     activeCanvas.off('mouse:move',handleMouseMove);
+     activeCanvas.off('mouse:up',handleMouseUp);
+     activeCanvas.isDrawingMode = false;
+     
+     activeCanvas.getObjects().forEach((obj)=> {
+      obj.selectable = false;
+     })
+
+     activeCanvas.selection = false;
+     setHammerEls((pre)=> [...pre, hammer]);
+
+  }
+
+  async function handlePinch(e){
+    // console.log(e)
+    let canvas = activeCanvas;
+    canvases.forEach((canvas)=> {
+      var zoom = canvas.getZoom();
+      zoom *= 0.999 ** (e.deltaY);
+
+      // let lastZoom = zoomLevel;
+      // let pinchZoom = e.scale * lastZoom 
+      // console.log("pinch zoom")
+      // console.log(pinchZoom);
+    
+      // if (pinchZoom < 0.1 ) pinchZoom = 0.1
+      // if(pinchZoom > 20) pinchZoom  = 20
+    
+      let center = canvas.getCenter();
+      // console.log(canvas);
+      // console.log(e)
+      let point = new fabric.Point(e.center.x, e.center.y);
+      // const deltaPoint = point.subtract(center);
+      // const zoomPoint = deltaPoint.divide(lastZoom).multiply(pinchZoom).add(center);
+    
+      // zoomLevel = pinchZoom;
+    
+      // const canvasZoom = canvas.getZoom();
+      // const newZoom = pinchZoom / canvasZoom;
+      // console.log("zoom point");
+      // console.log(point);
+      // console.log(newZoom);
+
+    
+      canvas.zoomToPoint(point, zoom);
+      e.preventDefault();
+
+      
+  })
+}
+
+  const handleTouchStart = (event) => {
+    console.log(event)
+    console.log("hello");
+    event.preventDefault();
+    const delta = event.deltaY;
+    const zoom = canvases[0].getZoom();
+
+    const newZoom = zoom + delta / 200;
+
+    if (newZoom > 10) {
+      return;
+    }
+    const point = new fabric.Point(activeCanvas.getWidth() / 2, activeCanvas.getHeight() / 2);
+    canvases.forEach((can)=> {
+      can.zoomToPoint(point, newZoom);
+    })
+    // activeCanvas.zoomToPoint(point, newZoom);
+  };
+
+
+
+  const  handleReceiveCoord = (data) =>{
       let us = users.find(u=> u.userId === data.userId);
-      console.log("user");
-      console.log(us)
       if(us){
         us.coord = data.coord;
 
@@ -342,9 +513,7 @@ const FabricJSCanvas = () => {
   }
   
   function closeNameModal(namein) {
-    console.log(roomId);
-    console.log(userId);
-    console.log(namein);
+    setMyName(namein);
     socket.emit('join-room',{roomId, name:namein, userId});
     setNameModel(false)
   }
@@ -582,9 +751,9 @@ const FabricJSCanvas = () => {
   }
 
   const toolHandler = (toolName) => {
+    
     tool = toolName
     setToolS(toolName)
-    console.log(activeCanvas)
     activeCanvas.isDrawingMode = false;
     activeCanvas.selectable = false;
     activeCanvas.selection = false;
@@ -874,6 +1043,7 @@ const FabricJSCanvas = () => {
   //   myHeight = activeCanvas.getHeight();
   //   myZoom = activeCanvas.getZoom();
   },[activeCanvas]);
+  
 
   const deleteElement = useCallback((e) => {
     const keyID = e.keyCode;
@@ -951,6 +1121,9 @@ const FabricJSCanvas = () => {
         }
 
         <nav className='top_nav z-[10000000]'>
+          <button className={toolS === "panning"? activeToolStyle : normalToolStyle} onClick={handlePanning} id="panning">
+            <FaHandPaper />
+          </button>
             <button className={toolS === "selection"? activeToolStyle : normalToolStyle}
             id="selection"
             onClick={handlerSelect}
@@ -1053,7 +1226,7 @@ const FabricJSCanvas = () => {
       <div className='canvasesdiv relative'>
         {canvasesRaw.map((canva, idx)=> {
           {console.log(canva)}
-          return <Canvas canva={canva} index={idx} key={idx} setActiveCanvas={setActiveCanvas} activeCanvas={activeCanvas} canvases={canvases} setCanvases={setCanvases} />
+          return <Canvas canva={canva} index={idx} toolS={toolS} key={idx} setActiveCanvas={setActiveCanvas} activeCanvas={activeCanvas} canvases={canvases} setCanvases={setCanvases} />
         })}
        {/* {canvasRefs.current.map((canvasREF, idx)=> {
         return( <div className=' absolute top-0 left-0' key={idx}>
